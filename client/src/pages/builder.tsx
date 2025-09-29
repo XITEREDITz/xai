@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Project, User } from "@shared/schema";
 import Navbar from "@/components/navbar";
 import VisualBuilder from "@/components/visual-builder";
 import CodePreview from "@/components/code-preview";
@@ -19,16 +20,6 @@ import AiChat from "@/components/ai-chat";
 import AdModal from "@/components/ad-modal";
 import { Save, Download, Play, Settings, Zap, Sparkles, Code, Coins } from "lucide-react";
 
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  type: 'plugin' | 'mod';
-  platform: string;
-  components: any[];
-  generatedCode: string;
-  aiModel: string;
-}
 
 export default function Builder() {
   const { projectId } = useParams();
@@ -38,23 +29,27 @@ export default function Builder() {
   const [showAdModal, setShowAdModal] = useState(false);
   const [project, setProject] = useState<Project>({
     id: '',
+    userId: '',
     name: 'New Project',
     description: '',
     type: 'plugin',
     platform: 'bukkit',
     components: [],
     generatedCode: '',
-    aiModel: 'claude'
+    aiModel: 'claude',
+    templateId: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
   });
 
   // Fetch project if editing existing one
-  const { data: existingProject, isLoading: projectLoading } = useQuery({
+  const { data: existingProject, isLoading: projectLoading } = useQuery<Project>({
     queryKey: ['/api/projects', projectId],
     enabled: !!projectId,
   });
 
   // Fetch user data for coin balance
-  const { data: userData } = useQuery({
+  const { data: userData } = useQuery<User>({
     queryKey: ['/api/auth/me'],
   });
 
@@ -198,7 +193,7 @@ export default function Builder() {
               {userData && (
                 <div className="flex items-center space-x-2 bg-secondary rounded-lg px-3 py-1">
                   <Coins className="text-yellow-400 h-4 w-4" />
-                  <span className="text-sm font-mono" data-testid="coin-balance">{userData.user.coins}</span>
+                  <span className="text-sm font-mono" data-testid="coin-balance">{userData.coins}</span>
                 </div>
               )}
               <Button
@@ -255,7 +250,7 @@ export default function Builder() {
 
           <TabsContent value="code" className="space-y-6 mt-6">
             <CodePreview
-              code={project.generatedCode}
+              code={project.generatedCode || ''}
               language="java"
               onExport={handleExport}
             />
@@ -321,7 +316,7 @@ export default function Builder() {
                   <div className="space-y-2">
                     <Label htmlFor="ai-model">AI Model</Label>
                     <Select
-                      value={project.aiModel}
+                      value={project.aiModel || 'claude'}
                       onValueChange={(value) => updateProject({ aiModel: value })}
                     >
                       <SelectTrigger data-testid="select-ai-model">
@@ -355,7 +350,7 @@ export default function Builder() {
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    value={project.description}
+                    value={project.description || ''}
                     onChange={(e) => updateProject({ description: e.target.value })}
                     placeholder="Describe your mod/plugin..."
                     rows={4}

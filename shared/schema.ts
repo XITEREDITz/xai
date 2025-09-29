@@ -10,8 +10,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   coins: integer("coins").default(1250).notNull(),
   trialEndsAt: timestamp("trial_ends_at"),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
+  paypalSubscriptionId: text("paypal_subscription_id"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 

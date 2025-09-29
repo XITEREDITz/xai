@@ -9,8 +9,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserCoins(userId: string, coins: number): Promise<User>;
-  updateStripeCustomerId(userId: string, customerId: string): Promise<User>;
-  updateUserStripeInfo(userId: string, info: { customerId: string; subscriptionId: string }): Promise<User>;
+  updatePaypalSubscriptionId(userId: string, subscriptionId: string): Promise<User>;
   
   // Project methods
   getProject(id: string): Promise<Project | undefined>;
@@ -69,22 +68,10 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateStripeCustomerId(userId: string, customerId: string): Promise<User> {
+  async updatePaypalSubscriptionId(userId: string, subscriptionId: string): Promise<User> {
     const [user] = await db
       .update(users)
-      .set({ stripeCustomerId: customerId })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
-  }
-
-  async updateUserStripeInfo(userId: string, info: { customerId: string; subscriptionId: string }): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ 
-        stripeCustomerId: info.customerId,
-        stripeSubscriptionId: info.subscriptionId 
-      })
+      .set({ paypalSubscriptionId: subscriptionId })
       .where(eq(users.id, userId))
       .returning();
     return user;

@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,51 +21,27 @@ import {
   Loader2
 } from "lucide-react";
 
-// Make sure to call `loadStripe` outside of a component's render to avoid
-// recreating the `Stripe` object on every render.
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
-
 const CheckoutForm = () => {
-  const stripe = useStripe();
-  const elements = useElements();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [, setLocation] = useLocation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!stripe || !elements) {
-      return;
-    }
-
+  const handlePayPalSubscription = async () => {
     setIsProcessing(true);
 
     try {
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/builder`,
-        },
-      });
-
-      if (error) {
-        toast({
-          title: "Payment Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+      // Create PayPal subscription
+      const response = await apiRequest("POST", "/api/paypal/create-subscription");
+      const data = await response.json();
+      
+      if (data.approvalUrl) {
+        // Redirect to PayPal for approval
+        window.location.href = data.approvalUrl;
       } else {
-        toast({
-          title: "Welcome to Pro!",
-          description: "Your subscription is now active. You have unlimited access to all features.",
-        });
-        setLocation("/builder");
+        throw new Error("Failed to create PayPal subscription");
       }
     } catch (error: any) {
+      setIsProcessing(false);
       toast({
         title: "Payment Error",
         description: error.message || "An unexpected error occurred",
@@ -79,33 +53,42 @@ const CheckoutForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Payment Information</h3>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <PaymentElement 
-            options={{
-              layout: "tabs"
-            }}
-          />
+        <div className="bg-card border border-border rounded-lg p-6 text-center">
+          <div className="text-blue-600 font-semibold text-lg mb-2">PayPal Subscription</div>
+          <p className="text-muted-foreground mb-4">
+            You'll be redirected to PayPal to complete your subscription securely.
+          </p>
+          <div className="flex justify-center">
+            <img 
+              src="/paypal-logo.png" 
+              alt="PayPal" 
+              className="h-8"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
         </div>
       </div>
 
       <div className="bg-secondary/20 rounded-lg p-4">
         <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
           <Shield className="h-4 w-4" />
-          <span>Secured by Stripe • SSL Encrypted</span>
+          <span>Secured by PayPal • SSL Encrypted</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Your payment information is processed securely. We don't store your card details.
+          Your payment information is processed securely by PayPal. We don't store your payment details.
         </p>
       </div>
 
       <Button 
-        type="submit" 
+        onClick={handlePayPalSubscription}
         className="w-full" 
         size="lg"
-        disabled={!stripe || isProcessing}
+        disabled={isProcessing}
         data-testid="submit-payment"
       >
         {isProcessing ? (
@@ -116,7 +99,7 @@ const CheckoutForm = () => {
         ) : (
           <>
             <CreditCard className="mr-2 h-4 w-4" />
-            Complete Subscription
+            Continue with PayPal
           </>
         )}
       </Button>
@@ -125,13 +108,11 @@ const CheckoutForm = () => {
         By subscribing, you agree to our Terms of Service and Privacy Policy. 
         Cancel anytime from your account settings.
       </p>
-    </form>
+    </div>
   );
 };
 
 export default function Checkout() {
-  const [clientSecret, setClientSecret] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -151,61 +132,6 @@ export default function Checkout() {
     }
   }, [userData, setLocation, toast]);
 
-  useEffect(() => {
-    if (!userData?.user) return;
-
-    // Create subscription as soon as the page loads
-    apiRequest("POST", "/api/get-or-create-subscription")
-      .then((res) => res.json())
-      .then((data) => {
-        setClientSecret(data.clientSecret);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        toast({
-          title: "Failed to initialize payment",
-          description: error.message,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-      });
-  }, [userData, toast]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">Setting up your subscription...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!clientSecret) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <Card>
-            <CardContent className="p-8 text-center">
-              <h1 className="text-2xl font-bold mb-4">Unable to Initialize Payment</h1>
-              <p className="text-muted-foreground mb-6">
-                We couldn't set up your subscription. Please try again or contact support.
-              </p>
-              <Button onClick={() => setLocation("/pricing")} variant="outline">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Pricing
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -346,10 +272,7 @@ export default function Checkout() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Make SURE to wrap the form in <Elements> which provides the stripe context. */}
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <CheckoutForm />
-                </Elements>
+                <CheckoutForm />
               </CardContent>
             </Card>
 

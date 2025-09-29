@@ -1,6 +1,5 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import Stripe from "stripe";
 import bcrypt from "bcrypt";
 import session from "express-session";
 import passport from "passport";
@@ -11,14 +10,6 @@ import { generateMinecraftCode as geminiGenerate, explainCode as geminiExplain, 
 import { generateMinecraftCode as gptGenerate, explainCode as gptExplain, optimizeCode as gptOptimize, generateBukkitSpigotCode, generateForgeCode } from "./services/openai";
 import { adsterraService } from "./services/adsterra";
 import { insertUserSchema, insertProjectSchema, insertAiGenerationSchema } from "@shared/schema";
-
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
@@ -213,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const now = new Date();
       const isInTrial = currentUser.trialEndsAt && new Date(currentUser.trialEndsAt) > now;
-      const isSubscribed = currentUser.stripeSubscriptionId;
+      const isSubscribed = currentUser.paypalSubscriptionId;
 
       const coinCost = getCoinCost(aiModel, prompt.length);
 
@@ -323,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const coinCost = 25; // Higher cost for optimization
       const now = new Date();
       const isInTrial = currentUser.trialEndsAt && new Date(currentUser.trialEndsAt) > now;
-      const isSubscribed = currentUser.stripeSubscriptionId;
+      const isSubscribed = currentUser.paypalSubscriptionId;
 
       if (!isInTrial && !isSubscribed && currentUser.coins < coinCost) {
         return res.status(402).json({ 
@@ -426,76 +417,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(config);
   });
 
-  // Stripe payment routes
-  app.post("/api/create-payment-intent", async (req, res) => {
+  // PayPal payment routes (placeholder for PayPal integration)
+  app.post("/api/create-paypal-order", async (req, res) => {
     try {
-      const { amount } = req.body;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: "usd",
-      });
-      res.json({ clientSecret: paymentIntent.client_secret });
+      // PayPal integration will be added here
+      res.json({ message: "PayPal integration pending" });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({ message: "Error creating payment intent: " + error.message });
+      res.status(500).json({ message: "Error creating PayPal order: " + error.message });
     }
   });
 
-  app.post('/api/get-or-create-subscription', async (req, res) => {
+  app.post('/api/paypal-subscription', async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.sendStatus(401);
     }
 
-    let user = req.user as any;
-
-    if (user.stripeSubscriptionId) {
-      try {
-        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-        res.send({
-          subscriptionId: subscription.id,
-          clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
-        });
-        return;
-      } catch (error) {
-        // Subscription doesn't exist, continue to create new one
-      }
-    }
-    
-    if (!user.email) {
-      throw new Error('No user email on file');
-    }
-
     try {
-      let customerId = user.stripeCustomerId;
-      
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: user.email,
-          name: user.username,
-        });
-        customerId = customer.id;
-        await storage.updateStripeCustomerId(user.id, customer.id);
-      }
-
-      const subscription = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{
-          price: process.env.STRIPE_PRICE_ID, // Set this in environment variables
-        }],
-        payment_behavior: 'default_incomplete',
-        expand: ['latest_invoice.payment_intent'],
-      });
-
-      await storage.updateUserStripeInfo(user.id, {
-        customerId, 
-        subscriptionId: subscription.id
-      });
-  
-      res.send({
-        subscriptionId: subscription.id,
-        clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
-      });
+      // PayPal subscription logic will be added here
+      res.json({ message: "PayPal subscription pending" });
     } catch (error: any) {
       return res.status(400).send({ error: { message: error.message } });
     }
