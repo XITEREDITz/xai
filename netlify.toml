@@ -1,0 +1,58 @@
+[build]
+  # Directory with the package.json
+  base = "."
+  
+  # Build command
+  command = "npm run build:frontend"
+  
+  # Directory to publish (built frontend)
+  publish = "dist/public"
+
+[build.environment]
+  # Node version
+  NODE_VERSION = "18"
+  # Prevent npm from installing dev dependencies in production
+  NODE_ENV = "production"
+
+# Redirect rules for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  
+# Ensure static assets are served correctly
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Environment variables (these will be set in Netlify dashboard)
+# DATABASE_URL = "your-production-database-url"
+# VITE_API_URL = "your-backend-api-url"
+# ANTHROPIC_API_KEY = "your-anthropic-key"
+# ... other environment variables
