@@ -1,6 +1,5 @@
-# Multi-stage build for better optimization
-# Build stage
-FROM node:20-alpine AS builder
+# Simple single-stage Dockerfile (fallback)
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
@@ -8,9 +7,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for build)
-# Clean npm cache first and use npm install for better compatibility
-RUN npm cache clean --force && npm install
+# Clean cache and install dependencies
+RUN npm cache clean --force
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -18,29 +17,8 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine AS production
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install only production dependencies
-RUN npm cache clean --force && npm install --only=production
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/shared ./shared
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-
-# Change ownership of the app directory
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+# Remove dev dependencies to reduce size
+RUN npm prune --production
 
 # Expose port
 EXPOSE $PORT
