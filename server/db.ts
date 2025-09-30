@@ -6,8 +6,13 @@ import * as schema from "@shared/schema";
 neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL is not set!");
+  console.error("🔧 Add PostgreSQL database in Railway:");
+  console.error("   1. Go to Railway dashboard");
+  console.error("   2. Click '+ New' → 'Database' → 'Add PostgreSQL'");
+  console.error("   3. Railway will set DATABASE_URL automatically");
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL must be set. Add PostgreSQL database in Railway.",
   );
 }
 
