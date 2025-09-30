@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+*.md
+.vscode
+.replit
+.nixpacks
+Dockerfile
+.dockerignore
